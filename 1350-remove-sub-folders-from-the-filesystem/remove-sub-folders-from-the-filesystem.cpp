@@ -1,26 +1,29 @@
-#include <vector>
 #include <string>
-#include <algorithm>
+#include <unordered_set>
+#include <vector>
 
-using namespace std;
+
 
 class Solution {
 public:
-    vector<string> removeSubfolders(vector<string>& folder) {
-        sort(folder.begin(), folder.end());
-        vector<string> res;
-        for (const auto& f : folder) {
-            if (res.empty()) {
-                res.push_back(f);
-            } else {
-                const string& prev = res.back();
-                if (f.find(prev) == 0 && f.size() > prev.size() && f[prev.size()] == '/') {
-                    continue;
-                } else {
-                    res.push_back(f);
-                }
-            }
-        }
-        return res;
+    std::vector<std::string> removeSubfolders(std::vector<std::string>& folders) {
+		std::vector<std::string> result;
+		std::unordered_set<std::string_view> set(folders.begin(), folders.end());
+
+		for (const auto& folder : folders) {
+			bool isSubfolder = false;
+
+			for (int i = 2; i < folder.size(); ++i) {
+				if (folder[i] == '/' && set.count(std::string_view(folder.c_str(), i))) {
+					isSubfolder = true;
+					break;
+				}
+			}
+
+			if (!isSubfolder)
+				result.emplace_back(folder);
+		}
+
+		return result;
     }
 };
