@@ -1,74 +1,94 @@
-#include <vector>
-#include <string>
-#include <unordered_map>
-#include <algorithm>
+template <class T> inline void hash_combine(std::size_t& seed, const T& v) {
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
 
-using namespace std;
 
-struct Node {
-    string name;
-    unordered_map<string, Node*> children;
-    string signature;
+// inline const auto optimize = []() {
+//   std::ios::sync_with_stdio(false);
+//   std::cin.tie(nullptr);
+//   std::cout.tie(nullptr);
+//   return 0;
+// }();
 
-    Node(string name) : name(name) {}
-};
+
 
 class Solution {
+    struct Node {
+        std::string_view name;
+        std::map<std::string_view, std::unique_ptr<Node>> children;
+        bool marked{false};
+
+        std::size_t
+        hash(std::unordered_map<std::size_t, std::vector<Node*>>& dir) {
+            if (children.size() == 0)
+                return 0;
+
+            // This does NOT include the hash of the name, since we are
+            // interested in child hashes.
+            std::size_t ourHash = 0;
+            for (const auto& child : children) {
+                hash_combine(ourHash, child.first);
+                auto theirHash = child.second->hash(dir);
+                hash_combine(ourHash, theirHash);
+            }
+
+            dir[ourHash].emplace_back(this);
+            return ourHash;
+        }
+
+        void pushOut(std::vector<std::vector<std::string>>& dirs,
+                     std::vector<std::string>& cur) {
+            if (marked)
+                return;
+
+            if (name != "/")
+                dirs.push_back(cur);
+
+            for (const auto& [cName, child] : children) {
+                cur.emplace_back(cName);
+                child->pushOut(dirs, cur);
+                cur.pop_back();
+            }
+        }
+    };
+
 public:
-    vector<vector<string>> deleteDuplicateFolder(vector<vector<string>>& paths) {
-        Node* root = new Node("");
+    static std::vector<std::vector<std::string>>
+    deleteDuplicateFolder(const std::vector<std::vector<std::string>>& paths) {
+        Node root{"/"sv};
+
         for (const auto& path : paths) {
-            Node* curr = root;
-            for (const string& folder : path) {
-                if (curr->children.find(folder) == curr->children.end()) {
-                    curr->children[folder] = new Node(folder);
+            Node* cur = &root;
+            for (const auto& dir : path) {
+                if (auto it = cur->children.find(dir);
+                    it != cur->children.end()) {
+                    cur = it->second.get();
+                    continue;
                 }
-                curr = curr->children[folder];
+
+                auto newNode = std::make_unique<Node>(dir);
+                auto hey = newNode.get();
+                cur->children.emplace(dir, std::move(newNode));
+                cur = hey;
             }
         }
 
-        unordered_map<string, int> signatureCount;
-        dfs(root, signatureCount);
+        // now we just need to
+        std::unordered_map<std::size_t, std::vector<Node*>> groups;
+        root.hash(groups);
 
-        vector<vector<string>> result;
-        vector<string> currentPath;
-        for (const auto& [name, child] : root->children) {
-            dfs2(child, currentPath, result, signatureCount);
-        }
+        for (const auto& [hash, group] : groups) {
+            if (group.size() < 2)
+                continue;
 
-        delete root;
-        return result;
-    }
-
-private:
-    void dfs(Node* node, unordered_map<string, int>& signatureCount) {
-        if (node->children.empty()) {
-            node->signature = "";
-            return;
+            for (const auto& node : group)
+                node->marked = true;
         }
 
-        vector<string> childSignatures;
-        for (const auto& [name, child] : node->children) {
-            dfs(child, signatureCount);
-            childSignatures.push_back(name + "(" + child->signature + ")");
-        }
-        sort(childSignatures.begin(), childSignatures.end());
-        node->signature = "";
-        for (const string& sig : childSignatures) {
-            node->signature += sig;
-        }
-        signatureCount[node->signature]++;
-    }
-
-    void dfs2(Node* node, vector<string>& currentPath, vector<vector<string>>& result, unordered_map<string, int>& signatureCount) {
-        if (!node->children.empty() && signatureCount[node->signature] >= 2) {
-            return;
-        }
-        currentPath.push_back(node->name);
-        result.push_back(currentPath);
-        for (const auto& [name, child] : node->children) {
-            dfs2(child, currentPath, result, signatureCount);
-        }
-        currentPath.pop_back();
+        std::vector<std::vector<std::string>> out;
+        std::vector<std::string> tmp;
+        root.pushOut(out, tmp);
+        return out;
     }
 };
