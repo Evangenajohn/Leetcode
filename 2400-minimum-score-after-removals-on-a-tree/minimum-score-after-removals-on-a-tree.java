@@ -1,71 +1,72 @@
-import java.util.*;
-
 class Solution {
-    private int[] subtreeXor;
-    private Set<Integer>[] descendants;
-    private List<Integer>[] graph;
-
-    private void dfs(int node, int parent, int[] nums) {
-        subtreeXor[node] = nums[node];
-        descendants[node].add(node);
-
-        for (int neighbor : graph[node]) {
-            if (neighbor != parent) {
-                dfs(neighbor, node, nums);
-                subtreeXor[node] ^= subtreeXor[neighbor];
-                descendants[node].addAll(descendants[neighbor]);
-            }
-        }
-    }
 
     public int minimumScore(int[] nums, int[][] edges) {
         int n = nums.length;
-        graph = new ArrayList[n];
+        List<List<Integer>> adj = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            graph[i] = new ArrayList<>();
+            adj.add(new ArrayList<>());
         }
-        for (int[] edge : edges) {
-            graph[edge[0]].add(edge[1]);
-            graph[edge[1]].add(edge[0]);
-        }
-
-        subtreeXor = new int[n];
-        descendants = new HashSet[n];
-        for (int i = 0; i < n; i++) {
-            descendants[i] = new HashSet<>();
+        for (int[] e : edges) {
+            adj.get(e[0]).add(e[1]);
+            adj.get(e[1]).add(e[0]);
         }
 
-        dfs(0, -1, nums);
+        int[] sum = new int[n];
+        int[] in = new int[n];
+        int[] out = new int[n];
+        int[] cnt = { 0 };
 
-        int totalXor = subtreeXor[0];
-        int minScore = Integer.MAX_VALUE;
-
-        for (int i = 1; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                int xorI = subtreeXor[i];
-                int xorJ = subtreeXor[j];
-                int val1, val2, val3;
-
-                if (descendants[i].contains(j)) { // j is in i's subtree
-                    val1 = xorJ;
-                    val2 = xorI ^ xorJ;
-                    val3 = totalXor ^ xorI;
-                } else if (descendants[j].contains(i)) { // i is in j's subtree
-                    val1 = xorI;
-                    val2 = xorJ ^ xorI;
-                    val3 = totalXor ^ xorJ;
-                } else { // Independent subtrees
-                    val1 = xorI;
-                    val2 = xorJ;
-                    val3 = totalXor ^ xorI ^ xorJ;
+        dfs(0, -1, nums, adj, sum, in, out, cnt);
+        int res = Integer.MAX_VALUE;
+        for (int u = 1; u < n; u++) {
+            for (int v = u + 1; v < n; v++) {
+                if (in[v] > in[u] && in[v] < out[u]) {
+                    res = Math.min(
+                        res,
+                        calc(sum[0] ^ sum[u], sum[u] ^ sum[v], sum[v])
+                    );
+                } else if (in[u] > in[v] && in[u] < out[v]) {
+                    res = Math.min(
+                        res,
+                        calc(sum[0] ^ sum[v], sum[v] ^ sum[u], sum[u])
+                    );
+                } else {
+                    res = Math.min(
+                        res,
+                        calc(sum[0] ^ sum[u] ^ sum[v], sum[u], sum[v])
+                    );
                 }
-                
-                int maxVal = Math.max(val1, Math.max(val2, val3));
-                int minVal = Math.min(val1, Math.min(val2, val3));
-                minScore = Math.min(minScore, maxVal - minVal);
             }
         }
+        return res;
+    }
 
-        return minScore;
+    private int calc(int part1, int part2, int part3) {
+        return (
+            Math.max(part1, Math.max(part2, part3)) -
+            Math.min(part1, Math.min(part2, part3))
+        );
+    }
+
+    private void dfs(
+        int x,
+        int fa,
+        int[] nums,
+        List<List<Integer>> adj,
+        int[] sum,
+        int[] in,
+        int[] out,
+        int[] cnt
+    ) {
+        in[x] = cnt[0]++;
+        sum[x] = nums[x];
+        for (int y : adj.get(x)) {
+            if (y == fa) {
+                continue;
+            }
+            dfs(y, x, nums, adj, sum, in, out, cnt);
+            sum[x] ^= sum[y];
+        }
+        out[x] = cnt[0];
     }
 }
