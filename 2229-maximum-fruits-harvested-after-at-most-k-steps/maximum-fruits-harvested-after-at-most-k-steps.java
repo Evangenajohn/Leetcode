@@ -1,26 +1,36 @@
 class Solution {
     public int maxTotalFruits(int[][] fruits, int startPos, int k) {
-        int left = 0, sum = 0, max = 0;
+        int n = fruits.length;
+        int left = lowerBound(fruits, startPos - k);
 
-        for (int right = 0; right < fruits.length; right++) {
+        int right = left;
+        int sum = 0;
+        for(; right < n && fruits[right][0] <= startPos; right++) {
             sum += fruits[right][1];
+        }
+        int ans = sum;
 
-            while (left <= right && minSteps(fruits[left][0], fruits[right][0], startPos) > k) {
+        for( ; right < n && fruits[right][0] <= startPos + k; right++) {
+            sum += fruits[right][1];
+            while((fruits[right][0] - startPos + fruits[right][0] - fruits[left][0]) > k && (startPos - fruits[left][0] + fruits[right][0] - fruits[left][0]) > k) {
                 sum -= fruits[left][1];
                 left++;
             }
-
-            max = Math.max(max, sum);
+            ans = Math.max(ans, sum);
         }
-
-        return max;
+        return ans;
     }
 
-    private int minSteps(int left, int right, int start) {
-        // Two paths: left first or right first
-        int goLeft = Math.abs(start - left) + (right - left);
-        int goRight = Math.abs(start - right) + (right - left);
-        return Math.min(goLeft, goRight);
+    private int lowerBound(int[][] arr, int target) {
+        int l = 0, r = arr.length;
+        while (l < r) {
+            int mid = l + (r - l) / 2;
+            if (arr[mid][0] < target) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        return l;
     }
 }
-
